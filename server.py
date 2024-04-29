@@ -46,6 +46,34 @@ def autenticateUser(email, senha):
     else:
         return False
     
+#Essa função realiza a verificação se existe já o usuário cadastrado
+def verifyUser(email):
+    conn = pool_connect()
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT COUNT(*) FROM ventos_user WHERE email = %s", (email,))
+        count = cur.fetchone()[0]
+        return count > 0
+    except psycopg2.Error as e:
+            print("Erro ao executar a consulta:", e)
+            return False
+    finally:
+        close_connect(conn)
+
+    
+#Essa função realiza o cadastramento do usuario
+def cadasUser(nome, sobrenome, email, senha, tipoUser):
+    conn = pool_connect()
+    try:
+        cur = conn.cursor()
+        cur.execute("INSERT INTO ventos_user (nome, sobrenome, email, senha, tipo_user) VALUES (%s, %s, %s, %s, %s)", (nome, sobrenome, email, senha, tipoUser))
+        conn.commit()
+    except psycopg2.Error as e:
+        print("Erro ao cadastrar usuário:", e)
+        raise
+    finally:
+        close_connect(conn)
+    
 #Aqui cria a rota de login
 @app.route('/login', methods = ['POST'])
 def login():
@@ -55,8 +83,26 @@ def login():
    try:
       if autenticateUser(email,senha):
          return jsonify({'message': 'Login bem-sucedido'}), 200
-      else:
+      else:        
          return jsonify({'message': 'Credenciais inválidas'}), 401  
+   except Exception as e:
+       return jsonify({'message' : str(e)}), 500
+   
+#Aqui cria a rota de Cadastramento do Usuário   
+@app.route('/caduser', methods = ['POST'])
+def cadUser():
+   nome = request.form['nome']
+   sobrenome = request.form['sobrenome']
+   email = request.form['email']
+   senha = request.form['senha']
+   tipoUser = request.form['tipoUser']
+
+   try:
+      if verifyUser(email):
+         return jsonify({'message': 'Usuário já existe'}), 401
+      else:
+         cadasUser(nome, sobrenome, email, senha, tipoUser)
+      return jsonify({'message': 'Usuário Cadastrado com Sucesso'}), 200
    except Exception as e:
        return jsonify({'message' : str(e)}), 500
    
