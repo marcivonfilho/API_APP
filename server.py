@@ -1,10 +1,12 @@
 #Utilizou-se Flask, psycopg2
 #conda info --envs      conda activate flaskenv
 #conda install -c conda-forge psycopg2-binary
+#conda install -c conda-forge bcrypt
 
 from flask import Flask, request, redirect, jsonify
 from config import Config
 import psycopg2
+from bcrypt import hashpw, checkpw, gensalt
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -31,22 +33,28 @@ def close_connect(conn):
 
 #Essa função realiza a verificação das credenciais do usuário
 def autenticateUser(email, senha):
-    conn = pool_connect()
-    if conn is not None:
-        try:
-            cur = conn.cursor()
-            cur.execute("SELECT 1 FROM ventos_user WHERE email = %s AND senha = %s LIMIT 1", (email, senha))
-            exists = cur.fetchone() is not None
-            return exists
-        except psycopg2.Error as e:
-            print("Erro ao executar a consulta:", e)
+    try:
+        conn = pool_connect()
+        with conn.cursor() as cur:
+            cur.execute("SELECT senha FROM ventos_user WHERE email = %s", (email,))
+            senha_cam = cur.fetchone()[0].strip()
+            if senha_cam:
+                senha1 = senha.encode('utf-8')
+                senha2 = senha_cam.encode('utf-8')
+                if checkpw(senha1, senha2):
+                    return True
             return False
-        finally:
-            close_connect(conn)
-    else:
+    except psycopg2.Error as e:
+        print("Erro ao executar a consulta:", e)
         return False
+    except Exception as e:
+        print("Erro inesperado:", e)
+        return False
+    finally:
+        if conn:
+            close_connect(conn)
     
-#Essa função realiza a verificação se existe já o usuário cadastrado
+#Essa função realiza a verificação se o usuário já é cadastrado
 def verifyUser(email):
     conn = pool_connect()
     try:
@@ -105,17 +113,6 @@ def cadUser():
       return jsonify({'message': 'Usuário Cadastrado com Sucesso'}), 200
    except Exception as e:
        return jsonify({'message' : str(e)}), 500
-   
-
-@app.route('/testlogin')
-def test():
-   email = 'marcivon71@gmail.com'
-   senha = 'MaR1206'
-   if autenticateUser(email, senha):
-      return jsonify({'message': 'Usuário existe e a senha está correta.'})
-   else:
-      return jsonify({'message': 'Usuário não encontrado ou senha incorreta.'})
-
 
 #Essa linha de código inicializa o server HTTP
 if __name__ == "__main__":
