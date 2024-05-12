@@ -1,5 +1,6 @@
 #Utilizou-se Flask, psycopg2
 #conda info --envs      conda activate flaskenv
+#conda install -c conda-forge flask
 #conda install -c conda-forge psycopg2-binary
 #conda install -c conda-forge bcrypt
 
