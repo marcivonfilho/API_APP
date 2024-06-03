@@ -2,11 +2,20 @@
 #conda info --envs      conda activate flaskenv
 #conda install -c conda-forge psycopg2-binary
 #conda install -c conda-forge bcrypt
+#conda install -c conda-forge pandas
+#conda install -c conda-forge geopandas matplotlib
 
-from flask import Flask, request, redirect, jsonify
+from flask import Flask, request, jsonify, send_file
 from config import Config
 import psycopg2
-from bcrypt import hashpw, checkpw, gensalt
+import geopandas as gpd
+from sqlalchemy import create_engine
+from sqlalchemy.engine.url import URL
+from bcrypt import checkpw
+import matplotlib
+matplotlib.use('agg')
+import matplotlib.pyplot as plt
+from io import BytesIO
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -81,6 +90,37 @@ def cadasUser(nome, sobrenome, email, senha, tipoUser):
         raise
     finally:
         close_connect(conn)
+
+#Essa função busca os arquivos shapefiles no banco de dados   
+def get_shapefiles_nbr():
+    url_database = 'postgresql://postgres:appventos@localhost/app_ventos'
+    engine = create_engine(url_database)
+    # Query para municipios do shapefile
+    sql_municipios = "SELECT geom FROM br_municipios_2022"
+    gdf_municipios = gpd.read_postgis(sql_municipios, engine, geom_col='geom')
+
+    # Query para linhas do shapefile
+    sql_linha = "SELECT geom FROM isopleta_nbr"
+    gdf_linha = gpd.read_postgis(sql_linha, engine, geom_col='geom')
+
+    engine.dispose()
+    return gdf_municipios, gdf_linha
+
+#Essa função busca os arquivos shapefiles no banco de dados   
+def get_shapefiles_proposta():
+    url_database = 'postgresql://postgres:appventos@localhost/app_ventos'
+    engine = create_engine(url_database)
+
+    # Query para municipios do shapefile
+    sql_municipi = "SELECT geom FROM br_municipios_2022"
+    gdf_municipi = gpd.read_postgis(sql_municipi, engine, geom_col='geom')
+
+    # Query para linhas do shapefile
+    sql_lin = "SELECT geom FROM isopleta_proposta"
+    gdf_lin = gpd.read_postgis(sql_lin, engine, geom_col='geom')
+
+    engine.dispose()
+    return gdf_municipi, gdf_lin
     
 #Aqui cria a rota de login
 @app.route('/login', methods = ['POST'])
@@ -113,6 +153,40 @@ def cadUser():
       return jsonify({'message': 'Usuário Cadastrado com Sucesso'}), 200
    except Exception as e:
        return jsonify({'message' : str(e)}), 500
+   
+#Aqui cria a rota para buscar a imagem e mostrar para o usuario   
+@app.route('/img_nbr', methods=['GET'])
+def img_nbr():
+    try:
+        gdf_municipios, gdf_linha = get_shapefiles_nbr()
+        
+        fig, ax = plt.subplots(figsize=(10, 10))
+        gdf_municipios.boundary.plot(ax=ax, linewidth=1, color='lightgray', alpha=0.7)
+        gdf_linha.plot(ax=ax, color='red')
+
+        img = BytesIO()
+        plt.savefig(img, format='png')
+        img.seek(0)
+        return send_file(img, mimetype='image/png')
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    
+#Aqui cria a rota para buscar a imagem e mostrar para o usuario   
+@app.route('/img_proposta', methods=['GET'])
+def img_prop():
+    try:
+        gdf_municipi, gdf_lin = get_shapefiles_proposta()
+        
+        fig, ax = plt.subplots(figsize=(10, 10))
+        gdf_municipi.boundary.plot(ax=ax, linewidth=1, color='lightgray', alpha=0.7)
+        gdf_lin.plot(ax=ax, color='red')
+
+        img = BytesIO()
+        plt.savefig(img, format='png')
+        img.seek(0)
+        return send_file(img, mimetype='image/png')
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 #Essa linha de código inicializa o server HTTP
 if __name__ == "__main__":
