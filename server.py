@@ -9,6 +9,7 @@
 from flask import Flask, request, jsonify, send_file
 from config import Config
 import psycopg2
+import os
 import geopandas as gpd
 from sqlalchemy import create_engine
 from sqlalchemy.engine.url import URL
@@ -20,6 +21,8 @@ from io import BytesIO
 
 app = Flask(__name__)
 app.config.from_object(Config)
+
+processed_images_dir = r'C:\Users\marci\Documents\images_processed'
 
 #Criar conexão com o banco de dados
 def pool_connect():
@@ -93,35 +96,40 @@ def cadasUser(nome, sobrenome, email, senha, tipoUser):
         close_connect(conn)
 
 #Essa função busca os arquivos shapefiles no banco de dados   
-def get_shapefiles_nbr():
+def get_shapefiles(map_type):
     url_database = 'postgresql://postgres:appventos@localhost/app_ventos'
     engine = create_engine(url_database)
-    # Query para municipios do shapefile
+    
     sql_municipios = "SELECT geom FROM br_municipios_2022"
     gdf_municipios = gpd.read_postgis(sql_municipios, engine, geom_col='geom')
-
-    # Query para linhas do shapefile
-    sql_linha = "SELECT geom FROM isopleta_nbr"
-    gdf_linha = gpd.read_postgis(sql_linha, engine, geom_col='geom')
-
+    
+    if map_type == 'isopleta_nbr': 
+        sql_linha = "SELECT geom FROM isopleta_nbr"
+        gdf_linha = gpd.read_postgis(sql_linha, engine, geom_col='geom')
+    elif map_type == 'isopleta_prop':
+        sql_lin = "SELECT geom FROM isopleta_proposta"
+        gdf_linha = gpd.read_postgis(sql_lin, engine, geom_col='geom')
+    
     engine.dispose()
     return gdf_municipios, gdf_linha
 
-#Essa função busca os arquivos shapefiles no banco de dados   
-def get_shapefiles_proposta():
-    url_database = 'postgresql://postgres:appventos@localhost/app_ventos'
-    engine = create_engine(url_database)
-
-    # Query para municipios do shapefile
-    sql_municipi = "SELECT geom FROM br_municipios_2022"
-    gdf_municipi = gpd.read_postgis(sql_municipi, engine, geom_col='geom')
-
-    # Query para linhas do shapefile
-    sql_lin = "SELECT geom FROM isopleta_proposta"
-    gdf_lin = gpd.read_postgis(sql_lin, engine, geom_col='geom')
-
-    engine.dispose()
-    return gdf_municipi, gdf_lin
+def check_and_process_image(map_type):
+    # Verificar se a imagem já existe no diretório
+    image_filename = f"map_{map_type}.png"
+    image_path = os.path.join(processed_images_dir, image_filename)
+    if os.path.exists(image_path):
+        # Se a imagem já existe, carregue-a e retorne-a
+        return image_path
+    else:
+        # Se a imagem não existe, processe-a
+        gdf_municipios, gdf_linha = get_shapefiles(map_type)
+        fig, ax = plt.subplots(figsize=(10, 10))
+        gdf_municipios.boundary.plot(ax=ax, linewidth=1, color='lightgray', alpha=0.7)
+        gdf_linha.plot(ax=ax, color='red')
+        # Salvar a imagem processada
+        plt.savefig(image_path, format='png')
+        plt.close(fig)
+        return image_path
     
 #Aqui cria a rota de login
 @app.route('/login', methods = ['POST'])
@@ -156,38 +164,18 @@ def cadUser():
        return jsonify({'message' : str(e)}), 500
    
 #Aqui cria a rota para buscar a imagem e mostrar para o usuario   
-@app.route('/img_nbr', methods=['GET'])
+@app.route('/img_isopleta', methods=['GET'])
 def img_nbr():
     try:
-        gdf_municipios, gdf_linha = get_shapefiles_nbr()
+        map_type = request.args.get('map_type')
+        if not map_type:
+            return "Parâmetro 'map_type' é necessário", 400
         
-        fig, ax = plt.subplots(figsize=(10, 10))
-        gdf_municipios.boundary.plot(ax=ax, linewidth=1, color='lightgray', alpha=0.7)
-        gdf_linha.plot(ax=ax, color='red')
-
-        img = BytesIO()
-        plt.savefig(img, format='png')
-        img.seek(0)
-        return send_file(img, mimetype='image/png')
+        image_path = check_and_process_image(map_type)
+        return send_file(image_path, mimetype='image/png')
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-    
-#Aqui cria a rota para buscar a imagem e mostrar para o usuario   
-@app.route('/img_proposta', methods=['GET'])
-def img_prop():
-    try:
-        gdf_municipi, gdf_lin = get_shapefiles_proposta()
-        
-        fig, ax = plt.subplots(figsize=(10, 10))
-        gdf_municipi.boundary.plot(ax=ax, linewidth=1, color='lightgray', alpha=0.7)
-        gdf_lin.plot(ax=ax, color='red')
 
-        img = BytesIO()
-        plt.savefig(img, format='png')
-        img.seek(0)
-        return send_file(img, mimetype='image/png')
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
 
 #Essa linha de código inicializa o server HTTP
 if __name__ == "__main__":
