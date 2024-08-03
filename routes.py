@@ -117,7 +117,7 @@ def init_routes(app, config):
             elif latitude is None or longitude is None:
                 return jsonify({'error': 'latitude and longitude are required'}), 400
 
-            velocity_VK = double(calcular_velocidade(
+            velocity_VK, velocity_VD = double(calcular_velocidade(
                 latitude,
                 longitude,
                 map_type,
@@ -131,7 +131,8 @@ def init_routes(app, config):
                 fatorCaracte))
 
             return jsonify({
-            'velocity': velocity_VK
+            'velocity': velocity_VK,
+            'velocitys': velocity_VD
         }), 200
         except Exception as e:
             print(f"Error: {str(e)}")

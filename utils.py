@@ -102,6 +102,11 @@ def get_shapefiles(map_type, config):
         gdf_linha = gpd.read_postgis(sql_linha, engine, geom_col='geom')
         engine.dispose()
         return gdf_linha
+    elif map_type == 'isopleta_prop_calc':
+        sql_linha = "SELECT geom, velocidade FROM norma_proposta_velocidade"
+        gdf_linha = gpd.read_postgis(sql_linha, engine, geom_col='geom')
+        engine.dispose()
+        return gdf_linha
 
 def get_velocity_V0(user_location, gdf_linha):
     try:
@@ -232,20 +237,21 @@ def get_velocity_VK(alturaz, fatorS1, anguloTeta, dt, categoriaS2, rajadaS2, fat
     fators3 = float(df_grupo.loc[df_grupo.index, 'S3'].values[0])
 
     velocidade_VK = format(float(velocidadeV0 * fators1 * fators2 * fators3), '.2f')
+    velocidade_VD = format(float(velocidadeV0 * fators1 * fators2 * (0.92 * fators3)), '.2f')
     print(velocidade_VK)
     print(fators1,fators2,fators3)
 
-    return velocidade_VK   
+    return velocidade_VK, velocidade_VD  
     
 def calcular_velocidade(latitude, longitude, map_type, config, altura, fators1, anguloteta, dt, categoriaS2, rajadaS2, fatorS3):
     gdf_linha = get_shapefiles(map_type, config)
+
+    print(map_type)
 
     user_location = Point(longitude, latitude)
 
     velocidade_V0 = get_velocity_V0(user_location, gdf_linha)
 
-    velocidade_V0 = float(40)
-
-    velocidade_VK = get_velocity_VK(altura, fators1, anguloteta, dt, categoriaS2, rajadaS2, fatorS3, velocidade_V0)
+    velocidade_VK, velocidade_VD = get_velocity_VK(altura, fators1, anguloteta, dt, categoriaS2, rajadaS2, fatorS3, velocidade_V0)
     
-    return velocidade_VK
+    return velocidade_VK, velocidade_VD
