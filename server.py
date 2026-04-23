@@ -24,7 +24,7 @@ from app.api.routes import init_routes
 app = Flask(
     __name__,
     static_url_path="/images_processed",
-    static_folder=r"C:\Users\marci\Documents\images_processed",
+    static_folder=str(Config.PROCESSED_IMAGES_DIR),
 )
 
 app.config.from_object(Config)

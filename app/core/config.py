@@ -6,6 +6,14 @@ load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 
+
+def _env_bool(name: str, default: bool = False) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
 class Config:
     # ===============================
     # PATHS
@@ -18,7 +26,7 @@ class Config:
     # ===============================
     # FLASK
     # ===============================
-    DEBUG = False
+    DEBUG = _env_bool("FLASK_DEBUG", False)
     JSON_AS_ASCII = False
     JSONIFY_PRETTYPRINT_REGULAR = False
 
@@ -49,24 +57,21 @@ class Config:
     POSTGRES_PORT = os.getenv("POSTGRES_PORT", "5432")
     POSTGRES_DB = os.getenv("POSTGRES_DB", "app_ventos")
     POSTGRES_USER = os.getenv("POSTGRES_USER", "postgres")
-    POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "appventos")
-    POSTGRES_DSN = "postgresql://postgres:appventos@localhost:5432/app_ventos"
-
-    SQLALCHEMY_DATABASE_URI = (
+    POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "")
+    DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
+    _POSTGRES_URL = (
         f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}"
         f"@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
     )
+    SQLALCHEMY_DATABASE_URI = DATABASE_URL or _POSTGRES_URL
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     # DSN cru para tools geoespaciais
-    POSTGRES_DSN = (
-        f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}"
-        f"@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
-    )
+    POSTGRES_DSN = DATABASE_URL or _POSTGRES_URL
 
     # ===============================
     # OUTROS
     # ===============================
     PROCESSED_IMAGES_DIR = Path(
-        os.getenv("PROCESSED_IMAGES_DIR", r"C:\Users\marci\Documents\images_processed")
+        os.getenv("PROCESSED_IMAGES_DIR", str(BASE_DIR / "images_processed"))
     )
