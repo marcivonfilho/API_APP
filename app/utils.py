@@ -12,7 +12,7 @@ import folium
 from shapely.geometry import LineString, MultiLineString
 from sqlalchemy import create_engine
 from shapely.geometry import Point
-from bcrypt import checkpw
+from bcrypt import checkpw, hashpw, gensalt
 
 def pool_connect(config):
     try:
@@ -79,6 +79,49 @@ def cadasUser(nome, sobrenome, email, senha, tipoUser, config):
         raise
     finally:
         close_connect(conn)
+
+def update_password(email, new_password_plain, config):
+    conn = pool_connect(config)
+    try:
+        cur = conn.cursor()
+
+        new_hash = hashpw(new_password_plain.encode('utf-8'), gensalt()).decode('utf-8')
+
+        cur.execute(
+            "UPDATE ventos_user SET senha = %s WHERE email = %s",
+            (new_hash, email)
+        )
+        if cur.rowcount == 0:
+            return False  # não achou usuário
+
+        conn.commit()
+        return True
+    except psycopg2.Error as e:
+        print("Erro ao atualizar senha:", e)
+        raise
+    finally:
+        close_connect(conn)
+
+        import psycopg2
+
+def get_chat_history(config, device_id: str, limit=10):
+    conn = pool_connect(config)
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT role, content
+                FROM chat_messages
+                WHERE device_id = %s
+                ORDER BY created_at ASC
+                LIMIT %s
+                """,
+                (device_id, limit),
+            )
+            rows = cur.fetchall()
+            return [{"role": r, "content": c} for r, c in rows]
+    finally:
+        conn.close()
 
 def get_shapefiles(map_type, config):
     url_database = config['SQLALCHEMY_DATABASE_URI']

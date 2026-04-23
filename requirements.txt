@@ -1,0 +1,16 @@
+flask
+flask-cors
+python-dotenv
+google-genai
+openai
+chromadb
+PyMuPDF
+requests
+psycopg2-binary
+sqlalchemy
+pandas
+geopandas
+shapely
+folium
+matplotlib
+bcrypt

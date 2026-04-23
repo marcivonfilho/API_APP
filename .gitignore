@@ -1,0 +1,41 @@
+# Secrets and local environment
+.env
+.env.*
+!.env.example
+
+# Python cache and local tooling
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Local databases and generated vector stores
+vector_db/
+*.sqlite
+*.sqlite3
+*.db
+
+# Knowledge base sources and generated extraction artifacts.
+# Keep these out of public GitHub by default; regenerate locally with scripts/.
+knowledge_base/
+
+# Local editor and OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Logs and temporary files
+*.log
+tmp/
+temp/
